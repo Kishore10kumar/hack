@@ -406,21 +406,29 @@ export class FaceDetectionEngine {
   }
 
   private detectYawn(mouthAR: number): boolean {
-    // Raised threshold significantly — normal talking/smiling stays well below 0.18.
-    // A real yawn opens the mouth wide (MAR ~0.20+) and is sustained for multiple frames.
-    const YAWN_THRESHOLD = 0.18;
-    const YAWN_SUSTAIN_FRAMES = 18; // must be open wide for ~0.6s at 30fps
+    // A real yawn requires:
+    // 1. Average MAR > 0.25 (well above talking ~0.08-0.15) sustained over 25 frames (~0.8s)
+    // 2. A genuine peak of at least 0.30 somewhere in the window
+    // 3. At least 80% of the frames must be above YAWN_THRESHOLD
+    // This triple condition eliminates false positives from talking, singing or brief mouth openings.
+    const YAWN_THRESHOLD = 0.25;
+    const YAWN_PEAK = 0.30;
+    const YAWN_SUSTAIN_FRAMES = 25;
+    const YAWN_FRAME_RATIO = 0.80;
 
     this.mouthAspectHistory.push(mouthAR);
     if (this.mouthAspectHistory.length > YAWN_SUSTAIN_FRAMES) {
       this.mouthAspectHistory.shift();
     }
 
-    // Only count as yawn if we have enough frames AND the average is above threshold
     if (this.mouthAspectHistory.length < YAWN_SUSTAIN_FRAMES) return false;
 
-    const avgMouthAR = this.mouthAspectHistory.reduce((sum, val) => sum + val, 0) / this.mouthAspectHistory.length;
-    return avgMouthAR > YAWN_THRESHOLD;
+    const avgMouthAR = this.mouthAspectHistory.reduce((sum, v) => sum + v, 0) / this.mouthAspectHistory.length;
+    const maxMouthAR = Math.max(...this.mouthAspectHistory);
+    const framesAbove = this.mouthAspectHistory.filter(v => v > YAWN_THRESHOLD).length;
+    const frameRatio = framesAbove / this.mouthAspectHistory.length;
+
+    return avgMouthAR > YAWN_THRESHOLD && maxMouthAR > YAWN_PEAK && frameRatio >= YAWN_FRAME_RATIO;
   }
 
   private calculateHeadPose(landmarks: any[]): 'center' | 'left' | 'right' | 'down' {
