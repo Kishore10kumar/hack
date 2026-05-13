@@ -42,8 +42,10 @@ export default function Login() {
     reader.readAsDataURL(file);
   };
 
-  const phoneRegex = /^\+?[\d\s\-()]{7,20}$/;
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  // Exactly 10 digits after stripping all non-digit characters
+  const isValidPhone = (val: string) => val.replace(/\D/g, '').length === 10;
+  // Must have format: something@something.tld where tld is 2+ letters
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
 
   const validate = (f: FormState): FormErrors => {
     const errs: FormErrors = {};
@@ -52,18 +54,18 @@ export default function Login() {
     }
     if (!f.phone.trim()) {
       errs.phone = "Phone number is required";
-    } else if (!phoneRegex.test(f.phone.trim())) {
-      errs.phone = "Enter a valid phone number (e.g. +91 98765 43210)";
+    } else if (!isValidPhone(f.phone)) {
+      errs.phone = "Enter a valid 10-digit phone number (e.g. 98765 43210)";
     }
     if (!f.secondaryPhone.trim()) {
-      errs.secondaryPhone = "Secondary / emergency contact number is required";
-    } else if (!phoneRegex.test(f.secondaryPhone.trim())) {
-      errs.secondaryPhone = "Enter a valid phone number";
+      errs.secondaryPhone = "Emergency contact number is required";
+    } else if (!isValidPhone(f.secondaryPhone)) {
+      errs.secondaryPhone = "Enter a valid 10-digit phone number";
     }
     if (!f.email.trim()) {
       errs.email = "Email address is required";
     } else if (!emailRegex.test(f.email.trim())) {
-      errs.email = "Enter a valid email address";
+      errs.email = "Enter a valid email address (e.g. name@gmail.com)";
     }
     return errs;
   };
