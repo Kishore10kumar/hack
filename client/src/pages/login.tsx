@@ -44,8 +44,22 @@ export default function Login() {
 
   // Exactly 10 digits after stripping all non-digit characters
   const isValidPhone = (val: string) => val.replace(/\D/g, '').length === 10;
-  // Must have format: something@something.tld where tld is 2+ letters
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
+
+  // Strict email: local@domain.tld
+  // - local part: 2+ chars (letters, digits, dots, underscores, hyphens)
+  // - domain name: 2+ chars before the last dot
+  // - TLD: 2+ letters only (com, in, org, net, etc.)
+  const isValidEmail = (val: string): boolean => {
+    const trimmed = val.trim().toLowerCase();
+    const re = /^[a-z0-9][a-z0-9._+\-]{1,}@[a-z0-9][a-z0-9\-]*\.[a-z]{2,}$/;
+    if (!re.test(trimmed)) return false;
+    const atIdx = trimmed.lastIndexOf('@');
+    const domain = trimmed.substring(atIdx + 1);
+    const dotIdx = domain.lastIndexOf('.');
+    const domainName = domain.substring(0, dotIdx);
+    const tld = domain.substring(dotIdx + 1);
+    return domainName.length >= 2 && tld.length >= 2;
+  };
 
   const validate = (f: FormState): FormErrors => {
     const errs: FormErrors = {};
@@ -64,8 +78,8 @@ export default function Login() {
     }
     if (!f.email.trim()) {
       errs.email = "Email address is required";
-    } else if (!emailRegex.test(f.email.trim())) {
-      errs.email = "Enter a valid email address (e.g. name@gmail.com)";
+    } else if (!isValidEmail(f.email)) {
+      errs.email = "Enter a valid email (e.g. kishore@gmail.com)";
     }
     return errs;
   };
