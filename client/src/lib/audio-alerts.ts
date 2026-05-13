@@ -16,68 +16,100 @@ class AudioAlerts {
     }
   }
 
-  private createBeep(frequency: number, duration: number, volume: number = 0.1): Promise<void> {
-    return new Promise((resolve) => {
-      if (!this.audioContext || !this.isEnabled) {
-        resolve();
-        return;
-      }
+  private ensureContext() {
+    if (!this.audioContext) return false;
+    if (this.audioContext.state === 'suspended') {
+      this.audioContext.resume();
+    }
+    return true;
+  }
 
-      const oscillator = this.audioContext.createOscillator();
-      const gainNode = this.audioContext.createGain();
+  private createTone(
+    frequency: number,
+    startTime: number,
+    duration: number,
+    volume: number = 0.3,
+    type: OscillatorType = 'square'
+  ): void {
+    if (!this.audioContext || !this.isEnabled) return;
+    const osc = this.audioContext.createOscillator();
+    const gain = this.audioContext.createGain();
+    osc.connect(gain);
+    gain.connect(this.audioContext.destination);
+    osc.type = type;
+    osc.frequency.setValueAtTime(frequency, startTime);
+    gain.gain.setValueAtTime(0, startTime);
+    gain.gain.linearRampToValueAtTime(volume, startTime + 0.01);
+    gain.gain.setValueAtTime(volume, startTime + duration - 0.05);
+    gain.gain.linearRampToValueAtTime(0, startTime + duration);
+    osc.start(startTime);
+    osc.stop(startTime + duration);
+  }
 
-      oscillator.connect(gainNode);
-      gainNode.connect(this.audioContext.destination);
-
-      oscillator.frequency.value = frequency;
-      oscillator.type = 'sine';
-
-      gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
-      gainNode.gain.linearRampToValueAtTime(volume, this.audioContext.currentTime + 0.01);
-      gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + duration);
-
-      oscillator.start(this.audioContext.currentTime);
-      oscillator.stop(this.audioContext.currentTime + duration);
-
-      oscillator.onended = () => resolve();
-    });
+  private createSweep(
+    freqStart: number,
+    freqEnd: number,
+    startTime: number,
+    duration: number,
+    volume: number = 0.35
+  ): void {
+    if (!this.audioContext || !this.isEnabled) return;
+    const osc = this.audioContext.createOscillator();
+    const gain = this.audioContext.createGain();
+    osc.connect(gain);
+    gain.connect(this.audioContext.destination);
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(freqStart, startTime);
+    osc.frequency.linearRampToValueAtTime(freqEnd, startTime + duration);
+    gain.gain.setValueAtTime(0, startTime);
+    gain.gain.linearRampToValueAtTime(volume, startTime + 0.02);
+    gain.gain.setValueAtTime(volume, startTime + duration - 0.03);
+    gain.gain.linearRampToValueAtTime(0, startTime + duration);
+    osc.start(startTime);
+    osc.stop(startTime + duration);
   }
 
   async playNotification(): Promise<void> {
-    await this.createBeep(800, 0.2);
+    if (!this.ensureContext() || !this.audioContext) return;
+    const t = this.audioContext.currentTime;
+    this.createTone(880, t, 0.12, 0.2, 'sine');
+    this.createTone(1100, t + 0.15, 0.12, 0.2, 'sine');
   }
 
   async playWarning(): Promise<void> {
-    await this.createBeep(600, 0.3);
-    await new Promise(resolve => setTimeout(resolve, 100));
-    await this.createBeep(600, 0.3);
+    if (!this.ensureContext() || !this.audioContext) return;
+    const t = this.audioContext.currentTime;
+    // Two sharp descending tones
+    this.createTone(1000, t, 0.18, 0.3, 'square');
+    this.createTone(700, t + 0.22, 0.18, 0.3, 'square');
+    this.createTone(1000, t + 0.48, 0.18, 0.3, 'square');
+    this.createTone(700, t + 0.70, 0.18, 0.3, 'square');
   }
 
   async playCritical(): Promise<void> {
-    for (let i = 0; i < 3; i++) {
-      await this.createBeep(400, 0.5, 0.15);
-      await new Promise(resolve => setTimeout(resolve, 200));
+    if (!this.ensureContext() || !this.audioContext) return;
+    const t = this.audioContext.currentTime;
+    // Fast repeating horn-like bursts
+    for (let i = 0; i < 4; i++) {
+      this.createTone(900, t + i * 0.25, 0.18, 0.35, 'square');
+      this.createTone(600, t + i * 0.25 + 0.10, 0.10, 0.25, 'square');
     }
   }
 
   async playEmergency(): Promise<void> {
-    for (let i = 0; i < 5; i++) {
-      await this.createBeep(300, 0.8, 0.2);
-      await new Promise(resolve => setTimeout(resolve, 300));
+    if (!this.ensureContext() || !this.audioContext) return;
+    const t = this.audioContext.currentTime;
+    // Siren wail: alternating high-low sweeps x4
+    for (let i = 0; i < 4; i++) {
+      const base = t + i * 0.6;
+      this.createSweep(600, 1200, base, 0.28, 0.4);
+      this.createSweep(1200, 600, base + 0.30, 0.28, 0.4);
     }
   }
 
-  enable(): void {
-    this.isEnabled = true;
-  }
-
-  disable(): void {
-    this.isEnabled = false;
-  }
-
-  isAudioEnabled(): boolean {
-    return this.isEnabled;
-  }
+  enable(): void { this.isEnabled = true; }
+  disable(): void { this.isEnabled = false; }
+  isAudioEnabled(): boolean { return this.isEnabled; }
 }
 
 const audioAlerts = new AudioAlerts();
@@ -85,32 +117,16 @@ const audioAlerts = new AudioAlerts();
 export async function playAlertSound(type: AlertType): Promise<void> {
   try {
     switch (type) {
-      case 'notification':
-        await audioAlerts.playNotification();
-        break;
-      case 'warning':
-        await audioAlerts.playWarning();
-        break;
-      case 'critical':
-        await audioAlerts.playCritical();
-        break;
-      case 'emergency':
-        await audioAlerts.playEmergency();
-        break;
+      case 'notification': await audioAlerts.playNotification(); break;
+      case 'warning':      await audioAlerts.playWarning();      break;
+      case 'critical':     await audioAlerts.playCritical();     break;
+      case 'emergency':    await audioAlerts.playEmergency();    break;
     }
   } catch (error) {
     console.warn('Failed to play alert sound:', error);
   }
 }
 
-export function enableAudioAlerts(): void {
-  audioAlerts.enable();
-}
-
-export function disableAudioAlerts(): void {
-  audioAlerts.disable();
-}
-
-export function isAudioEnabled(): boolean {
-  return audioAlerts.isAudioEnabled();
-}
+export function enableAudioAlerts(): void  { audioAlerts.enable(); }
+export function disableAudioAlerts(): void { audioAlerts.disable(); }
+export function isAudioEnabled(): boolean  { return audioAlerts.isAudioEnabled(); }
