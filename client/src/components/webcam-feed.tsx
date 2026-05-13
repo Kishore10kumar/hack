@@ -155,9 +155,11 @@ export default function WebcamFeed() {
       alertBeepCountRef.current = 0;
       prevAlertLevelRef.current = 'safe';
     } else {
-      // New alert session — reset counter
+      // New alert session — reset counter and fire event to dashboard
       if (prevAlertLevelRef.current === 'safe') {
         alertBeepCountRef.current = 0;
+        // Notify dashboard so it can play emergency sound & toast
+        window.dispatchEvent(new CustomEvent('fatigue-alert', { detail: { level: currentLevel } }));
       }
       prevAlertLevelRef.current = currentLevel;
 
