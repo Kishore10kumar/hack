@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Eye, Clock, Settings } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Eye, Clock } from "lucide-react";
 import WebcamFeed from "@/components/webcam-feed";
 import DriverProfile from "@/components/driver-profile";
 import MetricsDashboard from "@/components/metrics-dashboard";
@@ -116,14 +115,6 @@ export default function Dashboard() {
                 <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                 <span className="text-xs sm:text-sm tabular-nums" data-testid="current-time">{formatTime(currentTime)}</span>
               </div>
-              <Button
-                size="sm"
-                className="bg-primary text-primary-foreground hover:bg-primary/90 text-xs sm:text-sm px-2 sm:px-4"
-                data-testid="button-settings"
-              >
-                <Settings className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Settings</span>
-              </Button>
             </div>
           </div>
         </div>
