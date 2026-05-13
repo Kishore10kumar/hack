@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useLocation } from "wouter";
-import { Eye, User, Phone, Mail, Camera, Upload } from "lucide-react";
+import { Eye, User, Phone, Mail, Camera, Upload, PhoneCall } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,15 +8,30 @@ import { Label } from "@/components/ui/label";
 import { useUser } from "@/context/user-context";
 import { useToast } from "@/hooks/use-toast";
 
+interface FormState {
+  name: string;
+  phone: string;
+  secondaryPhone: string;
+  email: string;
+}
+
+interface FormErrors {
+  name?: string;
+  phone?: string;
+  secondaryPhone?: string;
+  email?: string;
+}
+
 export default function Login() {
   const { setUser } = useUser();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [form, setForm] = useState({ name: "", phone: "", email: "" });
+  const [form, setForm] = useState<FormState>({ name: "", phone: "", secondaryPhone: "", email: "" });
   const [photo, setPhoto] = useState<string | null>(null);
-  const [errors, setErrors] = useState<Partial<typeof form>>({});
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -27,31 +42,59 @@ export default function Login() {
     reader.readAsDataURL(file);
   };
 
-  const validate = () => {
-    const errs: Partial<typeof form> = {};
-    if (!form.name.trim()) errs.name = "Name is required";
-    if (!form.phone.trim()) errs.phone = "Phone number is required";
-    else if (!/^\+?[\d\s\-()]{7,}$/.test(form.phone.trim()))
-      errs.phone = "Enter a valid phone number";
-    if (!form.email.trim()) errs.email = "Email is required";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()))
+  const phoneRegex = /^\+?[\d\s\-()]{7,20}$/;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  const validate = (f: FormState): FormErrors => {
+    const errs: FormErrors = {};
+    if (!f.name.trim()) {
+      errs.name = "Full name is required";
+    }
+    if (!f.phone.trim()) {
+      errs.phone = "Phone number is required";
+    } else if (!phoneRegex.test(f.phone.trim())) {
+      errs.phone = "Enter a valid phone number (e.g. +91 98765 43210)";
+    }
+    if (!f.secondaryPhone.trim()) {
+      errs.secondaryPhone = "Secondary / emergency contact number is required";
+    } else if (!phoneRegex.test(f.secondaryPhone.trim())) {
+      errs.secondaryPhone = "Enter a valid phone number";
+    }
+    if (!f.email.trim()) {
+      errs.email = "Email address is required";
+    } else if (!emailRegex.test(f.email.trim())) {
       errs.email = "Enter a valid email address";
+    }
     return errs;
+  };
+
+  const setField = (field: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const updated = { ...form, [field]: e.target.value };
+    setForm(updated);
+    if (submitted) {
+      setErrors(validate(updated));
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const errs = validate();
-    if (Object.keys(errs).length > 0) {
-      setErrors(errs);
-      return;
-    }
+    setSubmitted(true);
+    const errs = validate(form);
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) return;
+
     setLoading(true);
     setTimeout(() => {
-      setUser({ name: form.name.trim(), phone: form.phone.trim(), email: form.email.trim(), photo });
+      setUser({
+        name: form.name.trim(),
+        phone: form.phone.trim(),
+        secondaryPhone: form.secondaryPhone.trim(),
+        email: form.email.trim(),
+        photo,
+      });
       toast({ title: `Welcome, ${form.name.trim()}!`, description: "Drive safe. FatigueWatch is monitoring you." });
       setLocation("/dashboard");
-    }, 600);
+    }, 500);
   };
 
   return (
@@ -59,7 +102,7 @@ export default function Login() {
       <div className="w-full max-w-md space-y-6">
         {/* Logo */}
         <div className="text-center space-y-2">
-          <div className="flex justify-center items-center space-x-2">
+          <div className="flex justify-center">
             <div className="bg-primary/10 rounded-full p-3">
               <Eye className="h-8 w-8 text-primary" />
             </div>
@@ -71,10 +114,11 @@ export default function Login() {
         <Card className="border-border">
           <CardHeader className="pb-4">
             <CardTitle className="text-xl text-center">Driver Sign In</CardTitle>
-            <p className="text-sm text-muted-foreground text-center">Enter your details to start monitoring</p>
+            <p className="text-sm text-muted-foreground text-center">All fields are required to start monitoring</p>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} noValidate className="space-y-5">
+
               {/* Photo Upload */}
               <div className="flex flex-col items-center space-y-3">
                 <div
@@ -93,58 +137,81 @@ export default function Login() {
                 <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
                 <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
                   <Upload className="h-3.5 w-3.5 mr-1.5" />
-                  Upload Photo
+                  {photo ? "Change Photo" : "Upload Photo"}
                 </Button>
               </div>
 
-              {/* Name */}
+              {/* Full Name */}
               <div className="space-y-1.5">
                 <Label htmlFor="name" className="flex items-center gap-1.5">
-                  <User className="h-3.5 w-3.5" /> Full Name
+                  <User className="h-3.5 w-3.5" /> Full Name <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="name"
-                  placeholder="e.g. John Mitchell"
+                  placeholder="e.g. Kishore Kumar"
                   value={form.name}
-                  onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setErrors(x => ({ ...x, name: undefined })); }}
-                  className={errors.name ? "border-destructive" : ""}
+                  onChange={setField("name")}
+                  className={errors.name ? "border-destructive focus-visible:ring-destructive" : ""}
                 />
-                {errors.name && <p className="text-xs text-destructive">{errors.name}</p>}
+                {errors.name && <p className="text-xs text-destructive font-medium">{errors.name}</p>}
               </div>
 
-              {/* Phone */}
+              {/* Primary Phone */}
               <div className="space-y-1.5">
                 <Label htmlFor="phone" className="flex items-center gap-1.5">
-                  <Phone className="h-3.5 w-3.5" /> Phone Number
+                  <Phone className="h-3.5 w-3.5" /> Your Phone Number <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="phone"
                   type="tel"
-                  placeholder="e.g. +1 555 123 4567"
+                  placeholder="e.g. +91 98765 43210"
                   value={form.phone}
-                  onChange={e => { setForm(f => ({ ...f, phone: e.target.value })); setErrors(x => ({ ...x, phone: undefined })); }}
-                  className={errors.phone ? "border-destructive" : ""}
+                  onChange={setField("phone")}
+                  className={errors.phone ? "border-destructive focus-visible:ring-destructive" : ""}
                 />
-                {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
+                {errors.phone && <p className="text-xs text-destructive font-medium">{errors.phone}</p>}
+              </div>
+
+              {/* Secondary / Emergency Contact */}
+              <div className="space-y-1.5">
+                <Label htmlFor="secondaryPhone" className="flex items-center gap-1.5">
+                  <PhoneCall className="h-3.5 w-3.5" /> Emergency Contact Number <span className="text-destructive">*</span>
+                </Label>
+                <p className="text-xs text-muted-foreground">Family member or trusted contact — alerted during emergencies</p>
+                <Input
+                  id="secondaryPhone"
+                  type="tel"
+                  placeholder="e.g. +91 98765 00000"
+                  value={form.secondaryPhone}
+                  onChange={setField("secondaryPhone")}
+                  className={errors.secondaryPhone ? "border-destructive focus-visible:ring-destructive" : ""}
+                />
+                {errors.secondaryPhone && <p className="text-xs text-destructive font-medium">{errors.secondaryPhone}</p>}
               </div>
 
               {/* Email */}
               <div className="space-y-1.5">
                 <Label htmlFor="email" className="flex items-center gap-1.5">
-                  <Mail className="h-3.5 w-3.5" /> Email Address
+                  <Mail className="h-3.5 w-3.5" /> Email Address <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="e.g. john@example.com"
+                  placeholder="e.g. kishore@example.com"
                   value={form.email}
-                  onChange={e => { setForm(f => ({ ...f, email: e.target.value })); setErrors(x => ({ ...x, email: undefined })); }}
-                  className={errors.email ? "border-destructive" : ""}
+                  onChange={setField("email")}
+                  className={errors.email ? "border-destructive focus-visible:ring-destructive" : ""}
                 />
-                {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+                {errors.email && <p className="text-xs text-destructive font-medium">{errors.email}</p>}
               </div>
 
-              <Button type="submit" className="w-full py-5 text-base" disabled={loading}>
+              {submitted && Object.keys(errors).length > 0 && (
+                <div className="rounded-md bg-destructive/10 border border-destructive/20 px-3 py-2 text-xs text-destructive font-medium">
+                  Please fill in all required fields correctly before continuing.
+                </div>
+              )}
+
+              <Button type="submit" className="w-full py-5 text-base font-semibold" disabled={loading}>
                 {loading ? "Starting session..." : "Start Monitoring"}
               </Button>
             </form>
@@ -152,7 +219,7 @@ export default function Login() {
         </Card>
 
         <p className="text-center text-xs text-muted-foreground">
-          Your data stays on this device. No data is sent to external servers.
+          Your data stays on this device only. Nothing is sent to external servers.
         </p>
       </div>
     </div>
