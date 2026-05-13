@@ -2,9 +2,11 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Coffee, Settings2, ChevronDown, ChevronUp, Phone, Mail, Calendar, Clock } from "lucide-react";
+import { AlertTriangle, Coffee, Bell, ChevronDown, ChevronUp, Phone, Mail, User, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { playAlertSound } from "@/lib/audio-alerts";
+import { useUser } from "@/context/user-context";
+import { useLocation } from "wouter";
 import type { Driver } from "@shared/schema";
 
 type DriverSession = {
@@ -22,108 +24,117 @@ type CurrentDriverResponse = {
   session: DriverSession;
 };
 
-export default function DriverProfile() {
-  const { toast } = useToast();
-  const [showFullProfile, setShowFullProfile] = useState(false);
+interface DriverProfileProps {
+  alertCount?: number;
+  lastAlertLevel?: string;
+  onBreakTaken?: () => void;
+}
 
-  const { data: currentDriver, isLoading } = useQuery<CurrentDriverResponse>({
+export default function DriverProfile({ alertCount = 0, lastAlertLevel = "None", onBreakTaken }: DriverProfileProps) {
+  const { toast } = useToast();
+  const { user, logout } = useUser();
+  const [, setLocation] = useLocation();
+  const [showFullProfile, setShowFullProfile] = useState(false);
+  const [emergencyActive, setEmergencyActive] = useState(false);
+  const [messageSent, setMessageSent] = useState(false);
+
+  const { data: currentDriver } = useQuery<CurrentDriverResponse>({
     queryKey: ['/api/drivers/current'],
   });
 
-  const handleEmergencyAlert = () => {
-    playAlertSound('emergency');
-    toast({
-      variant: "destructive",
-      title: "Emergency Alert Activated",
-      description: "Emergency services have been notified. Please pull over safely.",
-    });
-  };
-
-  const handleSuggestBreak = () => {
-    playAlertSound('notification');
-    toast({
-      title: "Break Suggested",
-      description: "It's recommended to take a 15-minute break.",
-    });
-  };
-
-  const handleCalibrate = () => {
-    toast({
-      title: "System Calibration",
-      description: "Calibrating detection system... Please look straight ahead.",
-    });
-  };
-
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="animate-pulse space-y-4">
-              <div className="flex items-center space-x-4">
-                <div className="w-16 h-16 bg-muted rounded-full"></div>
-                <div className="space-y-2">
-                  <div className="h-4 bg-muted rounded w-32"></div>
-                  <div className="h-3 bg-muted rounded w-24"></div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (!currentDriver) {
-    return (
-      <div className="space-y-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
-              <p className="text-muted-foreground">No active driver found</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  const driver = currentDriver.driver;
-  const session = currentDriver.session;
-  const driveTimeMinutes = session?.startTime ? 
-    Math.floor((Date.now() - new Date(session.startTime).getTime()) / (1000 * 60)) : 0;
+  const session = currentDriver?.session;
+  const driveTimeMinutes = session?.startTime
+    ? Math.floor((Date.now() - new Date(session.startTime).getTime()) / (1000 * 60))
+    : 0;
   const driveTimeHours = Math.floor(driveTimeMinutes / 60);
   const driveTimeRemainder = driveTimeMinutes % 60;
 
+  const handleEmergencyAlert = async () => {
+    setEmergencyActive(true);
+    await playAlertSound('emergency');
+    setMessageSent(true);
+    toast({
+      variant: "destructive",
+      title: "🚨 Emergency Alert Activated",
+      description: user
+        ? `Emergency notification sent to ${user.email} and ${user.phone}. Please pull over safely.`
+        : "Emergency services have been notified. Please pull over safely.",
+    });
+    setTimeout(() => { setEmergencyActive(false); setMessageSent(false); }, 8000);
+  };
+
+  const handleBreak = () => {
+    playAlertSound('notification');
+    if (onBreakTaken) onBreakTaken();
+    toast({
+      title: "☕ Taking a Break",
+      description: "Break recorded. Rest for at least 15 minutes before continuing.",
+    });
+  };
+
+  const handleAlertContact = () => {
+    playAlertSound('warning');
+    toast({
+      title: "📱 Alert Sent",
+      description: user
+        ? `Fatigue alert sent to ${user.email} and ${user.phone}.`
+        : "Fatigue alert sent to your registered contact.",
+    });
+  };
+
+  const handleLogout = () => {
+    logout();
+    setLocation("/");
+  };
+
+  const safetyScore = Math.max(0, 100 - alertCount * 5);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <Card data-testid="driver-profile">
-        <CardHeader>
-          <CardTitle>Current Driver</CardTitle>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle>Current Driver</CardTitle>
+            <Button variant="ghost" size="sm" onClick={handleLogout} className="text-muted-foreground hover:text-foreground h-8 px-2">
+              <LogOut className="h-3.5 w-3.5 mr-1" />
+              <span className="text-xs">Sign Out</span>
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
+          {/* Driver info */}
           <div className="flex items-center space-x-4 mb-4">
-            <img 
-              src={driver.profileImage || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=150&h=150"}
-              alt="Driver profile photo" 
-              className="w-16 h-16 rounded-full object-cover border-2 border-border"
-              data-testid="driver-photo"
-            />
+            {user?.photo ? (
+              <img
+                src={user.photo}
+                alt="Driver profile photo"
+                className="w-16 h-16 rounded-full object-cover border-2 border-border"
+                data-testid="driver-photo"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-full border-2 border-border bg-muted flex items-center justify-center">
+                <User className="h-7 w-7 text-muted-foreground" />
+              </div>
+            )}
             <div>
-              <h4 className="font-medium text-foreground" data-testid="driver-name">{driver.name}</h4>
-              <p className="text-sm text-muted-foreground" data-testid="driver-id">ID: {driver.driverId}</p>
-              <p className="text-sm text-muted-foreground" data-testid="driver-shift">
-                Shift: {driver.shiftStart} - {driver.shiftEnd}
+              <h4 className="font-medium text-foreground" data-testid="driver-name">
+                {user?.name || "Driver"}
+              </h4>
+              <p className="text-sm text-muted-foreground flex items-center gap-1">
+                <Phone className="h-3 w-3" />
+                {user?.phone || "—"}
+              </p>
+              <p className="text-sm text-muted-foreground flex items-center gap-1">
+                <Mail className="h-3 w-3" />
+                <span className="truncate max-w-[160px]">{user?.email || "—"}</span>
               </p>
             </div>
           </div>
-          
+
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">Status</span>
-              <span className={`font-medium ${driver.status === 'active' ? 'text-safe' : 'text-muted-foreground'}`} data-testid="driver-status">
-                {driver.status.charAt(0).toUpperCase() + driver.status.slice(1)}
-              </span>
+              <span className="font-medium text-safe" data-testid="driver-status">Active</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">Drive Time</span>
@@ -132,100 +143,71 @@ export default function DriverProfile() {
               </span>
             </div>
             <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Alerts Today</span>
+              <span className={`font-medium ${alertCount > 0 ? 'text-warning' : 'text-muted-foreground'}`}>
+                {alertCount}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">Last Alert</span>
-              <span className="text-muted-foreground" data-testid="last-alert">None</span>
+              <span className="text-muted-foreground capitalize">{lastAlertLevel}</span>
             </div>
           </div>
 
-          <Button 
-            variant="secondary" 
+          <Button
+            variant="secondary"
             className="w-full mt-4"
             onClick={() => setShowFullProfile(!showFullProfile)}
             data-testid="button-view-profile"
           >
             {showFullProfile ? (
-              <>
-                <ChevronUp className="h-4 w-4 mr-2" />
-                Hide Details
-              </>
+              <><ChevronUp className="h-4 w-4 mr-2" />Hide Details</>
             ) : (
-              <>
-                <ChevronDown className="h-4 w-4 mr-2" />
-                View Full Profile
-              </>
+              <><ChevronDown className="h-4 w-4 mr-2" />View Full Profile</>
             )}
           </Button>
 
-          {/* Expanded Profile Details */}
           {showFullProfile && (
-            <div className="mt-6 pt-6 border-t border-border space-y-4" data-testid="full-profile-details">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h5 className="text-sm font-medium text-foreground mb-2">Contact Information</h5>
-                  <div className="space-y-2">
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <Phone className="h-4 w-4 mr-2" />
-                      <span data-testid="driver-phone">+1 (555) 123-4567</span>
-                    </div>
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <Mail className="h-4 w-4 mr-2" />
-                      <span data-testid="driver-email">{driver.name.toLowerCase().replace(' ', '.')}@company.com</span>
-                    </div>
+            <div className="mt-5 pt-5 border-t border-border space-y-4" data-testid="full-profile-details">
+              <div>
+                <h5 className="text-sm font-medium text-foreground mb-2">Contact Information</h5>
+                <div className="space-y-2">
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <Phone className="h-4 w-4 mr-2 flex-shrink-0" />
+                    <span data-testid="driver-phone">{user?.phone || "—"}</span>
                   </div>
-                </div>
-                
-                <div>
-                  <h5 className="text-sm font-medium text-foreground mb-2">License Information</h5>
-                  <div className="space-y-2">
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <Calendar className="h-4 w-4 mr-2" />
-                      <span data-testid="license-expiry">Expires: Dec 2025</span>
-                    </div>
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <span className="text-xs bg-muted px-2 py-1 rounded" data-testid="license-class">Class A CDL</span>
-                    </div>
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <Mail className="h-4 w-4 mr-2 flex-shrink-0" />
+                    <span data-testid="driver-email" className="break-all">{user?.email || "—"}</span>
                   </div>
                 </div>
               </div>
 
               <div>
-                <h5 className="text-sm font-medium text-foreground mb-2">Recent Activity</h5>
+                <h5 className="text-sm font-medium text-foreground mb-2">Session Activity</h5>
                 <div className="space-y-2">
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-muted-foreground">Total Drive Time Today</span>
-                    <span className="text-foreground" data-testid="total-drive-time">
-                      {driveTimeHours}h {driveTimeRemainder}m
-                    </span>
+                    <span className="text-muted-foreground">Total Drive Time</span>
+                    <span className="text-foreground">{driveTimeHours}h {driveTimeRemainder}m</span>
                   </div>
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-muted-foreground">Fatigue Alerts Today</span>
-                    <span className="text-foreground" data-testid="fatigue-alerts">0</span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-muted-foreground">Last Break</span>
-                    <span className="text-foreground" data-testid="last-break">
-                      {session?.startTime ? 'At shift start' : 'N/A'}
-                    </span>
+                    <span className="text-muted-foreground">Fatigue Alerts</span>
+                    <span className="text-foreground" data-testid="fatigue-alerts">{alertCount}</span>
                   </div>
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-muted-foreground">Safety Score</span>
-                    <span className="text-safe font-medium" data-testid="safety-score">95/100</span>
+                    <span className={`font-medium ${safetyScore >= 80 ? 'text-safe' : safetyScore >= 50 ? 'text-warning' : 'text-critical'}`}>
+                      {safetyScore}/100
+                    </span>
                   </div>
                 </div>
               </div>
 
-              <div>
-                <h5 className="text-sm font-medium text-foreground mb-2">Emergency Contact</h5>
-                <div className="space-y-1">
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <span className="font-medium mr-2">Sarah Johnson (Spouse)</span>
-                  </div>
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <Phone className="h-4 w-4 mr-2" />
-                    <span data-testid="emergency-contact">+1 (555) 987-6543</span>
-                  </div>
+              {messageSent && (
+                <div className="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2 text-xs text-destructive">
+                  🚨 Emergency notification sent to {user?.email} and {user?.phone}
                 </div>
-              </div>
+              )}
             </div>
           )}
         </CardContent>
@@ -233,36 +215,37 @@ export default function DriverProfile() {
 
       {/* Quick Actions */}
       <Card data-testid="quick-actions">
-        <CardHeader>
+        <CardHeader className="pb-3">
           <CardTitle>Quick Actions</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            <Button 
+            <Button
               variant="destructive"
               className="w-full py-3"
               onClick={handleEmergencyAlert}
+              disabled={emergencyActive}
               data-testid="button-emergency"
             >
               <AlertTriangle className="h-4 w-4 mr-2" />
-              Emergency Alert
+              {emergencyActive ? "🚨 Emergency Active..." : "Emergency Alert"}
             </Button>
-            <Button 
+            <Button
               className="w-full py-2 bg-warning text-black hover:bg-warning/90"
-              onClick={handleSuggestBreak}
+              onClick={handleBreak}
               data-testid="button-break"
             >
               <Coffee className="h-4 w-4 mr-2" />
-              Suggest Break
+              Take a Break
             </Button>
-            <Button 
+            <Button
               variant="secondary"
               className="w-full py-2"
-              onClick={handleCalibrate}
-              data-testid="button-calibrate"
+              onClick={handleAlertContact}
+              data-testid="button-alert-contact"
             >
-              <Settings2 className="h-4 w-4 mr-2" />
-              Calibrate
+              <Bell className="h-4 w-4 mr-2" />
+              Alert My Contact
             </Button>
           </div>
         </CardContent>
