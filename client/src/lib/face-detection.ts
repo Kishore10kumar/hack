@@ -406,14 +406,19 @@ export class FaceDetectionEngine {
   }
 
   private detectYawn(mouthAR: number): boolean {
-    const YAWN_THRESHOLD = 0.07;
-    
+    // Raised threshold significantly — normal talking/smiling stays well below 0.18.
+    // A real yawn opens the mouth wide (MAR ~0.20+) and is sustained for multiple frames.
+    const YAWN_THRESHOLD = 0.18;
+    const YAWN_SUSTAIN_FRAMES = 18; // must be open wide for ~0.6s at 30fps
+
     this.mouthAspectHistory.push(mouthAR);
-    if (this.mouthAspectHistory.length > 10) {
+    if (this.mouthAspectHistory.length > YAWN_SUSTAIN_FRAMES) {
       this.mouthAspectHistory.shift();
     }
 
-    // Detect sustained mouth opening
+    // Only count as yawn if we have enough frames AND the average is above threshold
+    if (this.mouthAspectHistory.length < YAWN_SUSTAIN_FRAMES) return false;
+
     const avgMouthAR = this.mouthAspectHistory.reduce((sum, val) => sum + val, 0) / this.mouthAspectHistory.length;
     return avgMouthAR > YAWN_THRESHOLD;
   }
