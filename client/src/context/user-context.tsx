@@ -1,8 +1,9 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
 
 export interface UserProfile {
   name: string;
   phone: string;
+  secondaryPhone: string;
   email: string;
   photo: string | null;
 }
