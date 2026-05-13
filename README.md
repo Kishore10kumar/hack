@@ -1,200 +1,166 @@
-# 🚗 FatigueWatch - Real-time Driver Drowsiness Detection System
+# 🚗 FatigueWatch — Driver Drowsiness Detection System
 
-A sophisticated AI-powered driver safety system that monitors fatigue levels in real-time using advanced computer vision and provides instant alerts to prevent accidents caused by drowsy driving.
+  > Real-time AI-powered driver fatigue monitoring with live dashboard, GPS tracking, and emergency alerts.
 
-![FatigueWatch](https://img.shields.io/badge/Status-Production%20Ready-success)
-![License](https://img.shields.io/badge/License-MIT-blue)
-![React](https://img.shields.io/badge/React-18-61dafb)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6)
-![Node.js](https://img.shields.io/badge/Node.js-20-339933)
+  ---
 
-## 🎯 Overview
+  ## 📌 Overview
 
-FatigueWatch uses your computer's webcam to continuously monitor driver alertness through facial analysis. By tracking eye movements, blink patterns, yawning, and head position, it calculates a real-time drowsiness score and triggers progressive audio alerts when fatigue is detected.
+  **FatigueWatch** is a comprehensive driver safety system that uses your device's webcam and MediaPipe computer vision to monitor signs of drowsiness in real time. It detects yawning, eye closure, blink rate, and head position — then triggers graduated audio and visual alerts before a dangerous situation occurs.
 
-### Key Features
+  Built for hackathon demonstration and real-world applicability.
 
-- ✅ **Real-time AI Detection** - 30 FPS facial landmark tracking with MediaPipe
-- ✅ **Multi-Factor Analysis** - Eye state, blink rate, yawning, head position monitoring
-- ✅ **Progressive Alerts** - Graduated warning system from gentle beeps to emergency alarms
-- ✅ **Live Dashboard** - Professional React interface with real-time metrics and charts
-- ✅ **Multi-Client Monitoring** - WebSocket-based fleet management capabilities
-- ✅ **Production Ready** - Full TypeScript, database integration, type-safe operations
-- ✅ **Cross-Platform** - Browser-based, works on any device with webcam
+  ---
 
-## 🛠️ Technology Stack
+  ## ✨ Features
 
-### Frontend
-- **React 18** + **TypeScript** - Modern UI framework
-- **Vite** - Lightning-fast build tool
-- **Shadcn/ui** + **Radix UI** - Accessible component library
-- **Tailwind CSS** - Utility-first styling
-- **TanStack Query** - Server state management
-- **Recharts** - Data visualization
+  ### 🔐 Driver Login
+  - Secure sign-in with **Full Name**, **Phone Number**, **Emergency Contact Number**, and **Email**
+  - Optional profile photo upload — displayed on the dashboard
+  - Strict validation:
+    - Phone numbers must be exactly **10 digits**
+    - Email must follow proper format (e.g. `name@gmail.com`)
+  - All data stored locally on-device — nothing sent to external servers
 
-### AI & Computer Vision
-- **MediaPipe Face Mesh** - 468-point facial landmark detection
-- **Custom Detection Algorithms** - EAR, MAR, blink rate analysis
-- **Web Audio API** - Browser-native alert system
+  ### 📷 Real-Time Drowsiness Detection
+  Powered by **MediaPipe FaceMesh** (468 facial landmarks):
+  | Metric | Description |
+  |--------|-------------|
+  | 👁️ Eye State | Open / Drowsy / Closed using Eye Aspect Ratio (EAR) |
+  | 😮 Yawn Detection | Triple-check: average MAR > 0.25, peak > 0.30, sustained 25 frames (~0.8s) |
+  | 👁️‍🗨️ Blink Rate | Blinks per minute — elevated rate signals fatigue |
+  | 🙆 Head Position | Center / Left / Right / Down via nose-eye geometry |
+  | 📊 Drowsiness Score | 0–100 composite score driving alert levels |
 
-### Backend
-- **Node.js** + **Express.js** - Server framework
-- **WebSocket (ws)** - Real-time communication
-- **Drizzle ORM** - Type-safe database operations
-- **PostgreSQL** - Production database (Neon)
+  ### 🚨 Alert System (3-Tier)
+  | Level | Trigger | Sound |
+  |-------|---------|-------|
+  | ✅ Safe | Score < 35 | Silent |
+  | ⚠️ Warning | Score ≥ 35 or drowsy eyes | Two sharp descending tones |
+  | 🚨 Critical | Score ≥ 65 | Rapid horn bursts + auto emergency protocol |
 
-## 🚀 Getting Started
+  - Alerts play **3 beeps** (1 second apart) then go silent until driver recovers
+  - **Critical alert** automatically fires siren sound and on-screen emergency toast
 
-### Prerequisites
-- **Node.js 18 or higher** ([Download here](https://nodejs.org/))
-- **npm** (comes with Node.js)
-- **Webcam-enabled device**
-- **Modern web browser** (Chrome or Edge recommended for best MediaPipe compatibility)
+  ### 🆘 Emergency Actions
+  - **Emergency Alert button** — plays siren wail and notifies:
+    - Ambulance (112)
+    - Your registered phone number
+    - Your emergency contact number
+    - Your email address
+  - **Take a Break button** — logs the break and resets the 45-minute reminder
 
-### Quick Start (5 Minutes)
+  ### ⏰ 45-Minute Break Reminder
+  - Silently tracks time since last break
+  - Plays a notification sound and shows a reminder toast every 45 minutes
+  - Resets automatically when you tap "Take a Break"
 
-**Step 1: Clone the Repository**
-```bash
-git clone https://github.com/Kishore10kumar/FatigueWatch.git
-cd FatigueWatch
-```
+  ### 🗺️ Live GPS Location Tracking
+  - Auto-starts on page load using the browser's Geolocation API
+  - Live map (OpenStreetMap via Leaflet — **no API key needed**)
+  - Plots route trail, shows live speed and GPS accuracy
+  - Re-center button to snap back to current position
 
-**Step 2: Install Dependencies**
-```bash
-npm install
-```
-This will install all 476 required packages (~2-3 minutes)
+  ### 📊 Analytics Dashboard
+  - Real-time fatigue score chart (Recharts)
+  - Detection event log with timestamps
+  - Metrics cards: drowsiness score, blink rate, eye state, head position
+  - System health indicators and WebSocket connection status
 
-**Step 3: Start the Application**
-```bash
-npm run dev
-```
+  ---
 
-**Step 4: Open in Browser**
-- The server will start on **http://localhost:5000**
-- Open this URL in Chrome or Edge
-- **Allow camera access** when prompted
+  ## 🛠️ Tech Stack
 
-**Step 5: Start Monitoring**
-- Click "Start Monitoring" on the dashboard
-- Position your face in the webcam frame
-- The AI will initialize (10-30 seconds on first load)
-- Real-time detection will begin automatically
+  | Layer | Technology |
+  |-------|-----------|
+  | Frontend | React 18 + TypeScript |
+  | Styling | Tailwind CSS + Shadcn/ui + Radix UI |
+  | Computer Vision | MediaPipe FaceMesh |
+  | Maps | Leaflet + OpenStreetMap |
+  | Charts | Recharts |
+  | State | TanStack Query (React Query) |
+  | Routing | Wouter |
+  | Real-time | WebSocket |
+  | Backend | Node.js + Express.js |
+  | ORM | Drizzle ORM (PostgreSQL-ready) |
+  | Build | Vite + ESBuild |
 
-### What You'll See
+  ---
 
-1. **Loading Screen** - MediaPipe AI models downloading (~50MB, one-time)
-2. **Camera Permission** - Browser will ask for webcam access
-3. **Face Detection** - Green landmarks appear on your face
-4. **Live Dashboard** - Metrics update in real-time (30 times per second)
+  ## 🚀 Getting Started
 
-### Environment Setup (Optional)
+  ### Prerequisites
+  - Node.js 18+
+  - npm
 
-The app works out-of-the-box with in-memory storage. For database persistence:
+  ### Installation
 
-Create a `.env` file:
-```env
-NODE_ENV=development
-PORT=5000
-DATABASE_URL=postgresql://user:password@localhost:5432/fatiguewatch
-```
+  ```bash
+  git clone https://github.com/Kishore10kumar/hack.git
+  cd hack
+  npm install
+  ```
 
-### Troubleshooting
+  ### Run in Development
 
-**Problem: "npm install" fails**
-- Solution: Update Node.js to version 18 or higher
+  ```bash
+  npm run dev
+  ```
 
-**Problem: "MediaPipe not loading"**
-- Solution: Use Chrome/Edge browser, check internet connection
-- MediaPipe downloads ~50MB on first load
+  Open [http://localhost:5000](http://localhost:5000) in your browser.
 
-**Problem: Camera not working**
-- Solution: Allow camera permissions in browser settings
-- Check if another app is using the camera
+  > **Camera permission required** — allow webcam access when prompted for detection to work.
 
-**Problem: Port 5000 already in use**
-- Solution: Change PORT in `.env` file or stop other services on port 5000
+  ---
 
-**Problem: Black screen after camera permission**
-- Solution: Refresh the page and try again
-- Check browser console (F12) for error messages
+  ## 📁 Project Structure
 
-## 📊 How It Works
+  ```
+  hack/
+  ├── client/
+  │   └── src/
+  │       ├── components/         # UI components (webcam, profile, charts, map)
+  │       ├── context/            # UserContext (login state)
+  │       ├── hooks/              # Custom React hooks
+  │       ├── lib/                # Core logic (face detection, audio alerts)
+  │       └── pages/              # Login & Dashboard pages
+  ├── server/
+  │   ├── index.ts                # Express server
+  │   ├── routes.ts               # API routes
+  │   └── storage.ts              # In-memory data store
+  └── shared/
+      └── schema.ts               # Drizzle schema + Zod types
+  ```
 
-### Detection Process
+  ---
 
-1. **Camera Initialization** - Accesses webcam and initializes MediaPipe Face Mesh
-2. **Facial Landmark Detection** - Tracks 468 facial points at 30 FPS
-3. **Feature Extraction** - Calculates:
-   - Eye Aspect Ratio (EAR) - Eye openness measurement
-   - Mouth Aspect Ratio (MAR) - Yawn detection
-   - Blink Rate - Frequency monitoring
-   - Head Position - Tilt and nod tracking
-4. **Drowsiness Scoring** - Weighted algorithm combines all metrics (0-100 scale)
-5. **Alert System** - Progressive warnings based on score thresholds
-6. **Data Storage** - Real-time logging for analytics and trends
+  ## 🖥️ Usage
 
-### Alert Levels
+  1. Open the app → **Driver Sign In** page appears
+  2. Fill in your name, phone (10 digits), emergency contact, and email
+  3. Optionally upload your profile photo
+  4. Click **Start Monitoring** → dashboard opens with live webcam feed
+  5. Allow camera access — detection starts automatically
+  6. In case of emergency, tap the **Emergency Alert** button
 
-- 🟢 **SAFE (0-30)** - Driver is alert, no action needed
-- 🟡 **WARNING (31-60)** - Early fatigue signs, gentle notification
-- 🟠 **CRITICAL (61-85)** - Significant drowsiness, urgent alarm
-- 🔴 **EMERGENCY (86-100)** - Immediate danger, loud continuous alert
+  ---
 
-## 📱 Dashboard Features
+  ## 🔒 Privacy
 
-- **Live Metrics Panel** - Real-time drowsiness score, eye state, blink rate
-- **Trend Analysis** - Historical charts showing fatigue patterns
-- **System Health** - Camera status, FPS monitoring, AI processing status
-- **Driver Profiles** - Manage multiple drivers and sessions
-- **Alert History** - Track all warning events with timestamps
+  - All driver data is stored in **browser localStorage only**
+  - No video or images are ever uploaded or saved
+  - Location data stays on-device and is used only for the live map view
 
-## 🏗️ Architecture
+  ---
 
-```
-Frontend (React) → MediaPipe AI → WebSocket → Express Server → PostgreSQL
-     ↓                  ↓              ↓            ↓              ↓
-  Dashboard      Face Detection   Real-time    API Routes    Data Storage
-  Components     Algorithm        Updates      Validation    & Analytics
-```
+  ## 👨‍💻 Author
 
-## 🔒 Security & Privacy
+  **Kishore Kumar**  
+  GitHub: [@Kishore10kumar](https://github.com/Kishore10kumar)
 
-- All face detection processing happens **locally in the browser**
-- No facial images are stored or transmitted
-- Only detection metrics (scores, timestamps) are logged
-- WebSocket connections can be secured with authentication
-- Environment variables protect sensitive configurations
+  ---
 
-## 📈 Performance
+  ## 📄 License
 
-- **30 FPS** real-time face detection
-- **< 100ms** alert latency from detection to audio output
-- **468 facial landmarks** tracked simultaneously
-- **99%+** MediaPipe initialization success rate (3-tier fallback system)
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 📄 License
-
-This project is licensed under the MIT License.
-
-## 👨‍💻 Author
-
-**Kishore Kumar**
-
-## 🙏 Acknowledgments
-
-- Google MediaPipe for facial landmark detection
-- Shadcn/ui for beautiful UI components
-- Replit for development infrastructure
-
-## 📞 Support
-
-For questions or support, please open an issue on GitHub.
-
----
-
-**⚠️ Disclaimer**: This is a demonstration project. For production use in actual vehicles, additional safety measures, redundancy systems, and regulatory compliance are required.
+  MIT License — free to use, modify, and distribute.
+  
